@@ -1,0 +1,36 @@
+name: Cloud-Concierge Drift Detection
+on:
+  workflow_dispatch:
+    branches:
+      - main
+
+jobs:
+ drift-detection:
+    runs-on: ubuntu-latest
+    steps:
+
+    # Step 1: Check out the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Step 2: Set up AWS credentials
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_1 }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_1 }}
+        aws-region: us-east-1
+
+   # Step 3: Run the cloud-concierge Docker container.
+    - name: Run cloud-concierge container
+      run: |
+        docker run --env-file ./my-env-file.env \
+        -v ${{ github.workspace }}:/main \
+        -v $HOME/.aws:/main/credentials/aws:ro \
+        -w /main \
+        dragondropcloud/cloud-concierge:latest
+
+   # Step 6: Output Drift Detection Results
+    - name: Display Drift Detection Results
+      run: |
+        cat drift_detection_results.txt

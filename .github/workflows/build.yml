@@ -1,0 +1,43 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository to the GitHub Actions runner.
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Step 2: Set up AWS CLI with the necessary credentials.
+    # This uses the aws-actions/configure-aws-credentials action to configure the AWS CLI.
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_2 }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_2 }}
+        aws-region: us-east-1
+
+    # Step 3: Install Terraform CLI.
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
+
+    # Step 4: Initialize Terraform.
+    - name: Terraform Init
+      run: terraform init
+
+    # Step 6: Plan the Terraform deployment.
+    - name: Terraform Plan
+      run: terraform plan
+
+    # Step 7: Apply the Terraform configuration.
+    # This step applies the changes required to reach the desired state of the configuration.
+    - name: Terraform Apply
+      run: terraform apply -auto-approve
