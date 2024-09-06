@@ -2,7 +2,7 @@ name: Cloud-Concierge Drift Detection
 on:
   workflow_dispatch:
     branches:
-      - main
+      - master
 
 jobs:
  drift-detection:
