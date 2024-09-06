@@ -24,11 +24,7 @@ jobs:
    # Step 3: Run the cloud-concierge Docker container.
     - name: Run cloud-concierge container
       run: |
-        docker run --env-file ./my-env-file.env \
-        -v ${{ github.workspace }}:/main \
-        -v $HOME/.aws:/main/credentials/aws:ro \
-        -w /main \
-        dragondropcloud/cloud-concierge:latest
+        docker run -v main:/main -v ~/.aws:/main/credentials/aws:ro -w /main dragondropcloud/cloud-concierge:latest
 
    # Step 6: Output Drift Detection Results
     - name: Display Drift Detection Results
