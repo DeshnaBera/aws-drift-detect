@@ -21,6 +21,9 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_1 }}
         aws-region: us-east-1
 
+    - name: Pull cloud-concierge Docker image
+      run: docker pull dragondropcloud/cloud-concierge:latest
+
    # Step 3: Run the cloud-concierge Docker container.
     - name: Run cloud-concierge container
       run: |
