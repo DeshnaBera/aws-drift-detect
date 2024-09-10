@@ -27,9 +27,13 @@ jobs:
    # Step 3: Run the cloud-concierge Docker container.
     - name: Run cloud-concierge container
       run: |
-        docker run -v main:/main -v ~/.aws:/main/credentials/aws:ro -w /main dragondropcloud/cloud-concierge:latest
+        docker run --env-file ./my-env-file.env -v main:/main -v ~/.aws:/main/credentials/aws:ro -w /main  dragondropcloud/cloud-concierge:latest
 
-   # Step 6: Output Drift Detection Results
-    - name: Display Drift Detection Results
-      run: |
-        cat drift_detection_results.txt
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        token: ${{ secrets.CLOUD_CONCIERGE_TOKEN }}
+        commit-message: Update cloud state
+        branch: cloud-concierge-results
+        title: Cloud Concierge Results
+        body: This PR contains the latest cloud state and codified resources.
