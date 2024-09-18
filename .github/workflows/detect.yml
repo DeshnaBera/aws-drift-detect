@@ -28,8 +28,8 @@ jobs:
     - name: Run cloud-concierge container
       run: |
         docker run --env-file ./my-aws-env.env \
-        -e AWS_ACCESS_KEY_1=$(aws configure get aws_access_key_id) \
-        -e AWS_SECRET_ACCESS_KEY_1=$(aws configure get aws_secret_access_key) \
+        -e AWS_ACCESS_KEY_1=$(aws configure get aws-access-key-id) \
+        -e AWS_SECRET_ACCESS_KEY_1=$(aws configure get aws-secret-access-key) \
         -v main:/main \
         -w /main \
         dragondropcloud/cloud-concierge:latest
