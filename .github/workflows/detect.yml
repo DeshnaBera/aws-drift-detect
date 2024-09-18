@@ -27,7 +27,7 @@ jobs:
    # Step 3: Run the cloud-concierge Docker container.
     - name: Run cloud-concierge container
       run: |
-        docker run --env-file ./my-env-file.env \
+        docker run --env-file ./my-aws-env.env \
         -e AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_1) \
         -e AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key_1) \
         -v main:/main \
