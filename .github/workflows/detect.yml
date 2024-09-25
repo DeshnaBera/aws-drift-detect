@@ -1,18 +1,569 @@
+resource "aws_lambda_function" "lambda" {
+
+  for_each          = var.lambda_functions
+
+  function_name     = each.value.function_name
+
+  s3_bucket         = each.value.s3_bucket_name
+
+  s3_key            = each.value.s3_key
+
+  handler           = each.value.handler
+
+  runtime           = each.value.runtime
+
+  timeout           = each.value.timeout
+
+  role              = aws_iam_role.lambda_role[each.key].arn
+
+  environment {
+
+    variables = each.value.environment_variables
+
+  }
+
+}
+
+resource "aws_iam_role" "lambda_role" {
+
+  for_each = var.lambda_functions
+
+  name = "${each.value.function_name}_role"
+
+  assume_role_policy = jsonencode({
+
+    Version = "2012-10-17"
+
+    Statement = [
+
+      {
+
+        Action = "sts:AssumeRole"
+
+        Effect = "Allow"
+
+        Principal = {
+
+          Service = "lambda.amazonaws.com"
+
+        }
+
+      }
+
+    ]
+
+  })
+
+}
+
+resource "aws_iam_policy" "lambda_logging_policy" {
+
+  for_each    = var.lambda_functions
+
+  name        = "${each.value.function_name}_logging_policy"
+
+  description = "Policy for Lambda function to write logs to CloudWatch"
+
+  policy      = jsonencode({
+
+    Version = "2012-10-17"
+
+    Statement = [
+
+      {
+
+        Action = [
+
+          "logs:CreateLogGroup",
+
+          "logs:CreateLogStream",
+
+          "logs:PutLogEvents"
+
+        ]
+
+        Effect   = "Allow"
+
+        Resource = "arn:aws:logs:*:*:*"
+
+      }
+
+    ]
+
+  })
+
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_logging_policy_attachment" {
+
+  for_each = var.lambda_functions
+
+  role     = aws_iam_role.lambda_role[each.key].name
+
+  policy_arn = aws_iam_policy.lambda_logging_policy[each.key].arn
+
+}
+
+resource "aws_iam_policy" "lambda_s3_policy" {
+
+  for_each    = var.lambda_functions
+
+  name        = "${each.value.function_name}_s3_policy"
+
+  description = "Policy for Lambda function to access S3"
+
+  policy      = jsonencode({
+
+    Version = "2012-10-17"
+
+    Statement = [
+
+      {
+
+        Action = [
+
+          "s3:GetObject",
+
+          "s3:PutObject"
+
+        ]
+
+        Effect   = "Allow"
+
+        Resource = "arn:aws:s3:::${each.value.s3_bucket_name}/*"
+
+      }
+
+    ]
+
+  })
+
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_s3_policy_attachment" {
+
+  for_each = var.lambda_functions
+
+  role     = aws_iam_role.lambda_role[each.key].name
+
+  policy_arn = aws_iam_policy.lambda_s3_policy[each.key].arn
+
+}
+ 
+terraform {
+
+  required_version = ">= 0.14"
+
+  required_providers {
+
+    aws = {
+
+      source  = "hashicorp/aws"
+
+      version = ">= 3.0"
+
+    }
+
+  }
+
+  backend "s3" {
+
+    bucket         = "my-terraform-state-bucket"
+
+    key            = "global/s3/terraform.tfstate"
+
+    region         = "us-west-2"
+
+    dynamodb_table = "my-terraform-lock-table"
+
+    encrypt        = true
+
+  }
+
+}
+
+provider "aws" {
+
+  region = var.region
+
+}
+
+variable "environment" {
+
+  description = "The environment to deploy to"
+
+  type        = string
+
+  default     = "dev"
+
+}
+
+variable "region" {
+
+  description = "The AWS region to deploy to"
+
+  type        = string
+
+  default     = "us-west-2"
+
+}
+
+# Conditional logic to include environment-specific configurations
+
+module "environment" {
+
+  source = "./environments/${var.environment}"
+
+}
+
+output "lambda_function_arns" {
+
+  description = "ARNs of the deployed Lambda functions"
+
+  value       = module.environment.lambda_function_arns
+
+}
+ 
+provider "aws" {
+
+  region = var.region
+
+}
+
+module "lambda" {
+
+  source              = "../../modules/lambda"
+
+  function_name       = "my-lambda-dev"
+
+  handler             = "index.handler"
+
+  runtime             = "nodejs14.x"
+
+  timeout             = 30
+
+  environment_variables = {
+
+    STAGE = "dev"
+
+  }
+
+}
+ 
+module "lambda" {
+
+ source              = "../../modules/lambda"
+
+ function_name       = "my-lambda-dev"
+
+ handler             = "index.handler"
+
+ runtime             = "nodejs14.x"
+
+ timeout             = 30
+
+ environment_variables = {
+
+   STAGE = "dev"
+
+ }
+
+}
+ 
+provider "aws" {
+
+  region = var.region
+
+}
+
+module "lambda" {
+
+  source = "../../modules/lambda"
+
+  for_each = { for lambda in var.lambda_functions : lambda.function_name => lambda }
+
+  function_name        = each.value.function_name
+
+  handler              = each.value.handler
+
+  runtime              = each.value.runtime
+
+  timeout              = each.value.timeout
+
+  environment_variables = each.value.environment_variables
+
+  s3_bucket_name       = each.value.s3_bucket_name
+
+  s3_key               = each.value.s3_key
+
+}
+ 
+variable "region" {
+
+  description = "The AWS region to deploy to"
+
+  type        = string
+
+  default     = "us-west-2"
+
+}
+
+variable "lambda_functions" {
+
+  description = "List of Lambda function configurations for the dev environment"
+
+  type = list(object({
+
+    function_name       = string
+
+    handler             = string
+
+    runtime             = string
+
+    timeout             = number
+
+    environment_variables = map(string)
+
+    s3_bucket_name      = string
+
+    s3_key              = string
+
+  }))
+
+  default = [
+
+    {
+
+      function_name       = "my-lambda-dev-1"
+
+      handler             = "index.handler"
+
+      runtime             = "nodejs14.x"
+
+      timeout             = 30
+
+      environment_variables = {
+
+        STAGE = "dev"
+
+      }
+
+      s3_bucket_name      = "my-lambda-code-bucket"
+
+      s3_key              = "lambda-dev-1.zip"
+
+    },
+
+    {
+
+      function_name       = "my-lambda-dev-2"
+
+      handler             = "app.handler"
+
+      runtime             = "python3.8"
+
+      timeout             = 60
+
+      environment_variables = {
+
+        STAGE = "dev"
+
+      }
+
+      s3_bucket_name      = "my-lambda-code-bucket"
+
+      s3_key              = "lambda-dev-2.zip"
+
+    }
+
+  ]
+
+}
+ 
+region = "us-west-2"
+
+environment = "prod"
+
+lambda_functions = [
+
+  {
+
+    function_name       = "my-lambda-prod-1"
+
+    handler             = "index.handler"
+
+    runtime             = "nodejs14.x"
+
+    timeout             = 30
+
+    environment_variables = {
+
+      STAGE = "prod"
+
+    }
+
+    s3_bucket_name      = "my-lambda-code-bucket-prod"
+
+    s3_key              = "lambda-prod-1.zip"
+
+  },
+
+  {
+
+    function_name       = "my-lambda-prod-2"
+
+    handler             = "app.handler"
+
+    runtime             = "python3.8"
+
+    timeout             = 60
+
+    environment_variables = {
+
+      STAGE = "prod"
+
+    }
+
+    s3_bucket_name      = "my-lambda-code-bucket-prod"
+
+    s3_key              = "lambda-prod-2.zip"
+
+  }
+
+]
+ 
+git rebase, github- workflows actions , python basics , aws lambda s3 iam , terraform-modules   
+ 
+ 
+Bera,Deshna	Programmer Analyst	 	 
+ 
+ 
+ 
+Bera,Deshna	Programmer Analyst	
+Data Platform Team
+	
+Venkatesh Babu
+ 
+ 
+ 
+Bera,Deshna	Programmer Analyst	
+CDP/Modeln Team
+	
+Venkatesh Babu
+ 
+ 
+ 
+Alim,Zahaab
+	Programmer Analyst	
+CDP/Modeln Team
+	
+Venkatesh Babu
+ 
+ 
+Manicka Govindan, Venkatesh Babu
+ 
+Leader_Essential_Program.pdf
+ 
+name: Dragondrop Drift Detection
+
+on:
+
+  workflow_dispatch:
+
+  schedule:
+
+    # Run every day at 12:00 AM UTC
+
+    - cron: '0 0 * * *'
+
+jobs:
+
+  drift-detection:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # Step 1: Check out the repository
+
+    - name: Checkout repository
+
+      uses: actions/checkout@v3
+
+    # Step 2: Set up AWS credentials
+
+    - name: Configure AWS credentials
+
+      uses: aws-actions/configure-aws-credentials@v1
+
+      with:
+
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # Step 3: Install Dragondrop CLI
+
+    - name: Install Dragondrop CLI
+
+      run: |
+
+        curl -sSL https://install.dragondrop.cloud | bash
+
+    # Step 4: Authenticate with Dragondrop Cloud
+
+    - name: Authenticate with Dragondrop Cloud
+
+      env:
+
+        DRAGONDROP_API_KEY: ${{ secrets.DRAGONDROP_API_KEY }}
+
+      run: |
+
+        dragondrop login --api-key "$DRAGONDROP_API_KEY"
+
+    # Step 5: Run Dragondrop Drift Detection
+
+    - name: Run Drift Detection
+
+      run: |
+
+        dragondrop detect-drift --aws
+
+    # Step 6: Output Drift Detection Results
+
+    - name: Display Drift Detection Results
+
+      run: |
+
+        cat drift_detection_results.txt
+ 
+name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update cloud state
+          branch: cloud-concierge-results
+          title: Cloud Concierge Results
+          body: This PR contains the latest cloud state and codified resources
+ 
 name: Cloud-Concierge Drift Detection
 on:
   workflow_dispatch:
     branches:
       - master
-
+ 
 jobs:
  drift-detection:
     runs-on: ubuntu-latest
     steps:
-
+ 
     # Step 1: Check out the repository
     - name: Checkout repository
       uses: actions/checkout@v3
-
+ 
     # Step 2: Set up AWS credentials
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -20,26 +571,15 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_1 }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_1 }}
         aws-region: us-east-1
-      run: |
-        echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
-
-    
-
+ 
     - name: Pull cloud-concierge Docker image
       run: docker pull dragondropcloud/cloud-concierge:latest
-
+ 
    # Step 3: Run the cloud-concierge Docker container.
-    - name: Run Cloud Concierge container
+    - name: Run cloud-concierge container
       run: |
-        docker run --env-file ./my-env-file.env \
-          -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          -v ${{ github.workspace }}/main:/main \
-          -w /main \
-          dragondropcloud/cloud-concierge:latest
-
-
+        docker run --env-file ./my-aws-env.env -v ~/.aws:/main/credentials/aws:ro -w /main  dragondropcloud/cloud-concierge:latest
+ 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v3
       with:
@@ -48,3 +588,4 @@ jobs:
         branch: cloud-concierge-results
         title: Cloud Concierge Results
         body: This PR contains the latest cloud state and codified resources.
+ 
