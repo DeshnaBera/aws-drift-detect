@@ -20,19 +20,24 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_1 }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_1 }}
         aws-region: us-east-1
+      run: |
+        echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> $GITHUB_ENV
+
+    
 
     - name: Pull cloud-concierge Docker image
       run: docker pull dragondropcloud/cloud-concierge:latest
 
    # Step 3: Run the cloud-concierge Docker container.
-    - name: Run cloud-concierge container
+    - name: Run Cloud Concierge container
       run: |
-        docker run --env-file ./my-aws-env.env \
-        -e AWS_ACCESS_KEY_1=${{ secrets.AWS_ACCESS_KEY_1 }} \
-        -e AWS_SECRET_ACCESS_KEY_1=${{ secrets.AWS_SECRET_ACCESS_KEY_1 }} \
-        -v main:/main \
-        -w /main \
-        dragondropcloud/cloud-concierge:latest
+        docker run --env-file ./my-env-file.env \
+          -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          -v ${{ github.workspace }}/main:/main \
+          -w /main \
+          dragondropcloud/cloud-concierge:latest
 
 
     - name: Create Pull Request
